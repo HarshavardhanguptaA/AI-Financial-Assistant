@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="AI Financial Copilot - Personal Finance Dashboard for First-Time Earners backed by SQLite">
+    <title>Financial Copilot — Personal Finance Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-layout">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-container">
+                <div class="header-brand">
+                    <span class="brand-badge">FINANCE</span>
+                    <div class="brand-text">
+                        <h1 class="brand-title">Financial Copilot</h1>
+                        <p class="brand-subtitle">Personal Finance &amp; Budgeting for First-Time Earners</p>
+                    </div>
+                </div>
+                <div class="header-actions">
+                    <div class="status-indicator" title="Connected to local SQLite database">
+                        <span class="status-dot"></span>
+                        <span class="status-text">SQLite Local Storage</span>
+                    </div>
+                    <div class="current-date" id="currentDateDisplay">--</div>
+                    <button id="refreshBtn" class="btn btn-secondary btn-sm" title="Refresh dashboard data">
+                        Refresh
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-container">
+            <!-- Global Feedback / Alert Banner -->
+            <div id="globalNotification" class="notification hidden" role="alert">
+                <span id="notificationMessage"></span>
+                <button type="button" class="notification-close" id="notificationCloseBtn" aria-label="Dismiss">&times;</button>
+            </div>
+
+            <!-- 1. Summary Cards Overview -->
+            <section class="overview-section" aria-label="Financial Overview">
+                <div class="card summary-card" id="cardTotalIncome">
+                    <div class="summary-label">Total Income</div>
+                    <div class="summary-value" id="summaryTotalIncome">₹0.00</div>
+                    <div class="summary-subtext">All-time recorded earnings</div>
+                </div>
+                <div class="card summary-card" id="cardTotalExpenses">
+                    <div class="summary-label">Total Expenses</div>
+                    <div class="summary-value" id="summaryTotalExpenses">₹0.00</div>
+                    <div class="summary-subtext">All-time recorded spending</div>
+                </div>
+                <div class="card summary-card" id="cardAvailableBalance">
+                    <div class="summary-label">Available Balance</div>
+                    <div class="summary-value" id="summaryAvailableBalance">₹0.00</div>
+                    <div class="summary-subtext" id="summaryBalanceSubtext">Income minus expenses</div>
+                </div>
+                <div class="card summary-card" id="cardRemainingBudget">
+                    <div class="summary-label">Remaining Budget</div>
+                    <div class="summary-value" id="summaryRemainingBudget">₹0.00</div>
+                    <div class="summary-subtext" id="summaryBudgetSubtext">For current month</div>
+                </div>
+            </section>
+
+            <!-- 2. Spending & Budget Overview (Grid) -->
+            <section class="grid-two-columns">
+                <!-- Current Month Budget Status Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">Monthly Budget Progress</h2>
+                        <span class="card-tag" id="currentMonthBadge">Current Month</span>
+                    </div>
+                    <div class="card-body">
+                        <div id="budgetAlertBanner" class="budget-alert hidden"></div>
+
+                        <div class="budget-metrics-row">
+                            <div class="metric-item">
+                                <span class="metric-label">Monthly Budget</span>
+                                <span class="metric-val" id="metricMonthlyBudget">₹0.00</span>
+                            </div>
+                            <div class="metric-item">
+                                <span class="metric-label">Spent This Month</span>
+                                <span class="metric-val" id="metricSpentThisMonth">₹0.00</span>
+                            </div>
+                            <div class="metric-item">
+                                <span class="metric-label">Budget Remaining</span>
+                                <span class="metric-val" id="metricRemainingBudget">₹0.00</span>
+                            </div>
+                        </div>
+
+                        <!-- Progress Bar -->
+                        <div class="progress-wrapper">
+                            <div class="progress-labels">
+                                <span class="progress-title">Budget Utilization</span>
+                                <span class="progress-percentage" id="budgetUsagePercentText">0.00%</span>
+                            </div>
+                            <div class="progress-track">
+                                <div class="progress-fill" id="budgetProgressFill" style="width: 0%;"></div>
+                            </div>
+                        </div>
+
+                        <!-- Update Budget Sub-form -->
+                        <form id="updateBudgetForm" class="inline-form">
+                            <label for="budgetInput" class="form-label">Set / Update Monthly Limit (₹)</label>
+                            <div class="input-with-button">
+                                <input type="number" id="budgetInput" name="budgetInput" class="form-input" placeholder="e.g. 5000" min="1" step="0.01" required>
+                                <button type="submit" class="btn btn-primary" id="saveBudgetBtn">Save Budget</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Category Spending Breakdown Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">Spending by Category</h2>
+                        <span class="card-subtitle-small">Current Month Breakdown</span>
+                    </div>
+                    <div class="card-body">
+                        <div id="categoryBreakdownContainer" class="category-breakdown-list">
+                            <div class="empty-placeholder">No expense data recorded for this month.</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 3. Add Transaction & Affordability Checker (Grid) -->
+            <section class="grid-two-columns">
+                <!-- Add Transaction Form -->
+                <div class="card" id="addTransactionCard">
+                    <div class="card-header">
+                        <h2 class="card-title">Record Transaction</h2>
+                        <span class="card-subtitle-small">Add income or expense to SQLite</span>
+                    </div>
+                    <div class="card-body">
+                        <form id="transactionForm" novalidate>
+                            <div class="form-group">
+                                <label class="form-label">Transaction Type</label>
+                                <div class="segmented-control" role="radiogroup">
+                                    <button type="button" class="segment-btn active" id="typeExpenseBtn" data-type="EXPENSE">Expense</button>
+                                    <button type="button" class="segment-btn" id="typeIncomeBtn" data-type="INCOME">Income</button>
+                                </div>
+                                <input type="hidden" id="txnTypeInput" value="EXPENSE">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="txnDescription" class="form-label">Description</label>
+                                <input type="text" id="txnDescription" class="form-input" placeholder="e.g. Groceries, Monthly Stipend, Metro" required maxlength="100">
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group col-half">
+                                    <label for="txnAmount" class="form-label">Amount (₹)</label>
+                                    <input type="number" id="txnAmount" class="form-input" placeholder="e.g. 3000.00" min="0.01" step="0.01" required>
+                                </div>
+                                <div class="form-group col-half">
+                                    <label for="txnCategory" class="form-label" id="categoryLabel">Category</label>
+                                    <select id="txnCategory" class="form-select" required>
+                                        <!-- Populated dynamically via JS -->
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="txnDate" class="form-label">Date</label>
+                                <input type="date" id="txnDate" class="form-input" required>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary btn-block" id="submitTxnBtn">
+                                Save Transaction
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Purchase Affordability Checker -->
+                <div class="card" id="affordabilityCard">
+                    <div class="card-header">
+                        <h2 class="card-title">Purchase Affordability Checker</h2>
+                        <span class="card-subtitle-small">Evaluate impact before you spend</span>
+                    </div>
+                    <div class="card-body">
+                        <form id="affordabilityForm">
+                            <div class="form-group">
+                                <label for="plannedPurchaseInput" class="form-label">Planned Purchase Cost (₹)</label>
+                                <div class="input-with-button">
+                                    <input type="number" id="plannedPurchaseInput" class="form-input" placeholder="e.g. 2000.00" min="0.01" step="0.01" required>
+                                    <button type="submit" class="btn btn-secondary" id="checkAffordabilityBtn">Evaluate</button>
+                                </div>
+                            </div>
+                        </form>
+
+                        <!-- Affordability Analysis Output -->
+                        <div id="affordabilityResultContainer" class="affordability-results hidden">
+                            <div class="analysis-card">
+                                <div class="analysis-header">
+                                    <span class="analysis-title">Affordability Analysis</span>
+                                    <span class="analysis-status" id="affordabilityStatusBadge">Evaluating</span>
+                                </div>
+                                <div class="analysis-metrics">
+                                    <div class="analysis-item">
+                                        <span class="analysis-label">Current Available Balance</span>
+                                        <span class="analysis-val" id="affordCurrentBalance">₹0.00</span>
+                                    </div>
+                                    <div class="analysis-item">
+                                        <span class="analysis-label">Planned Cost</span>
+                                        <span class="analysis-val" id="affordPurchaseCost">₹0.00</span>
+                                    </div>
+                                    <div class="analysis-item">
+                                        <span class="analysis-label">Balance After Purchase</span>
+                                        <span class="analysis-val" id="affordBalanceAfter">₹0.00</span>
+                                    </div>
+                                    <div class="analysis-item">
+                                        <span class="analysis-label">Monthly Budget Remaining After</span>
+                                        <span class="analysis-val" id="affordBudgetAfter">--</span>
+                                    </div>
+                                </div>
+                                <div class="analysis-explanation">
+                                    <p id="affordabilityExplanationText"></p>
+                                </div>
+                                <p class="analysis-disclaimer">
+                                    Note: This analysis is an estimate strictly based on recorded transactions and the current monthly budget. It does not account for unrecorded expenses or upcoming obligations. Planned purchases are not recorded as expenses.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 4. Spending Insights Card -->
+            <section class="insights-section">
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">Rule-Based Spending Insights</h2>
+                        <span class="card-subtitle-small">Automated heuristics from transaction history</span>
+                    </div>
+                    <div class="card-body">
+                        <div id="insightsContainer" class="insights-list">
+                            <div class="empty-placeholder">Loading insights...</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 5. Recent Transactions History Table -->
+            <section class="transactions-section">
+                <div class="card">
+                    <div class="card-header flex-between">
+                        <div>
+                            <h2 class="card-title">Transaction History</h2>
+                            <span class="card-subtitle-small">All records persisted in SQLite</span>
+                        </div>
+                        <div class="table-actions">
+                            <span class="badge" id="transactionCountBadge">0 Transactions</span>
+                            <a href="#addTransactionCard" class="btn btn-secondary btn-sm">Add New</a>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="data-table" id="transactionsTable">
+                                <thead>
+                                    <tr>
+                                        <th scope="col" style="width: 80px;">ID</th>
+                                        <th scope="col" style="width: 130px;">Date</th>
+                                        <th scope="col">Description</th>
+                                        <th scope="col" style="width: 150px;">Category / Source</th>
+                                        <th scope="col" style="width: 110px;">Type</th>
+                                        <th scope="col" style="width: 140px; text-align: right;">Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="transactionsTableBody">
+                                    <tr>
+                                        <td colspan="6" class="text-center py-4">Loading transactions...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="app-footer">
+            <div class="footer-container">
+        <p>AI Financial Copilot &mdash; Phase 4 Smart Assistant &bull; Java + SQLite + Vanilla JS &bull; Local Development Only</p>
+            </div>
+        </footer>
+    </div>
+
+    <!-- ============================================================= -->
+    <!-- Smart Financial Assistant Chat Widget (Phase 4)               -->
+    <!-- ============================================================= -->
+
+    <!-- Floating trigger button -->
+    <button id="chatToggleBtn" class="chat-fab" aria-label="Open Financial Assistant" title="Ask your Financial Assistant">
+        <span class="chat-fab-icon">&#129302;</span>
+        <span class="chat-fab-label">Assistant</span>
+    </button>
+
+    <!-- Chat Panel -->
+    <div id="chatPanel" class="chat-panel" role="dialog" aria-label="Financial Assistant" aria-hidden="true">
+        <div class="chat-panel-header">
+            <div class="chat-header-info">
+                <span class="chat-bot-avatar">&#129302;</span>
+                <div>
+                    <div class="chat-bot-name">Financial Copilot</div>
+                    <div class="chat-bot-status">Smart Assistant &bull; Powered by your data</div>
+                </div>
+            </div>
+            <button id="chatCloseBtn" class="chat-close-btn" aria-label="Close chat">&times;</button>
+        </div>
+
+        <div class="chat-messages" id="chatMessages" role="log" aria-live="polite">
+            <!-- Welcome message injected by JS -->
+        </div>
+
+        <div class="chat-quick-replies" id="chatQuickReplies">
+            <button class="quick-reply-btn" data-msg="What is my balance?">Balance</button>
+            <button class="quick-reply-btn" data-msg="How much have I spent this month?">Spent</button>
+            <button class="quick-reply-btn" data-msg="What is my savings rate?">Savings</button>
+            <button class="quick-reply-btn" data-msg="Am I within my budget?">Budget</button>
+            <button class="quick-reply-btn" data-msg="Show me my category breakdown">Categories</button>
+            <button class="quick-reply-btn" data-msg="Give me financial insights">Insights</button>
+        </div>
+
+        <form id="chatForm" class="chat-input-area" autocomplete="off">
+            <input
+                type="text"
+                id="chatInput"
+                class="chat-input"
+                placeholder="Ask me anything about your finances..."
+                maxlength="200"
+                aria-label="Type your financial question"
+            >
+            <button type="submit" id="chatSendBtn" class="chat-send-btn" aria-label="Send message">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            </button>
+        </form>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
