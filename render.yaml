@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: ai-financial-copilot-backend
+    env: docker
+    plan: starter
+    region: oregon
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
+    envVars:
+      - key: PORT
+        value: 8080
+      - key: DB_PATH
+        value: /var/data/financial_copilot.db
+      - key: ALLOWED_ORIGIN
+        sync: false
+    disk:
+      name: financial-data
+      mountPath: /var/data
+      sizeGB: 1
+

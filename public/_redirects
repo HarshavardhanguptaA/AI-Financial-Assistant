@@ -1,0 +1,5 @@
+# Netlify _redirects file for direct static deployments
+# Replace https://YOUR_RENDER_SERVICE_NAME.onrender.com with your actual Render service URL
+/api/*  https://YOUR_RENDER_SERVICE_NAME.onrender.com/api/:splat  200!
+/*      /index.html                                               200
+

@@ -17,7 +17,7 @@ bin/
 target/
 
 # Legacy / Backup directories
-FinancialCopilot/
+/FinancialCopilot/
 
 # Local SQLite databases
 *.db

@@ -1,0 +1,19 @@
+[build]
+  publish = "public"
+
+# Proxy all API requests to the Render Java backend
+# When deploying to Render, set RENDER_BACKEND_URL in Netlify's Environment Variables
+# Example: https://ai-financial-copilot.onrender.com
+[[redirects]]
+  from = "/api/*"
+  to = ":RENDER_BACKEND_URL/api/:splat"
+  status = 200
+  force = true
+  headers = {X-Forwarded-Host = ":host"}
+
+# Fallback for client routing if needed
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+

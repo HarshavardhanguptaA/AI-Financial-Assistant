@@ -6,6 +6,23 @@
 (() => {
     'use strict';
 
+    /**
+     * Resolves the full URL for a given API path.
+     * If deployed to a static host such as GitHub Pages, window.__APP_CONFIG__.BACKEND_URL
+     * contains the live Render backend URL (e.g. 'https://service.onrender.com').
+     * In local development, it defaults to a relative path ('/api/...').
+     */
+    function apiUrl(endpoint) {
+        const path = endpoint.startsWith('/') ? endpoint : '/' + endpoint;
+        const backend = (window.__APP_CONFIG__ && window.__APP_CONFIG__.BACKEND_URL)
+            ? String(window.__APP_CONFIG__.BACKEND_URL).trim().replace(/\/+$/, '')
+            : '';
+        return backend ? `${backend}${path}` : path;
+    }
+
+    // Expose for widget or console inspection
+    window.apiUrl = apiUrl;
+
     // Currency Formatter
     const currencyFormatter = new Intl.NumberFormat('en-IN', {
         style: 'currency',
@@ -205,21 +222,21 @@
     }
 
     async function fetchSummary() {
-        const res = await fetch('/api/summary');
+        const res = await fetch(apiUrl('/api/summary'));
         if (!res.ok) throw new Error(`Summary API error: ${res.status}`);
         const data = await res.json();
         renderSummary(data);
     }
 
     async function fetchTransactions() {
-        const res = await fetch('/api/transactions');
+        const res = await fetch(apiUrl('/api/transactions'));
         if (!res.ok) throw new Error(`Transactions API error: ${res.status}`);
         const transactions = await res.json();
         renderTransactions(transactions);
     }
 
     async function fetchInsights() {
-        const res = await fetch('/api/insights');
+        const res = await fetch(apiUrl('/api/insights'));
         if (!res.ok) throw new Error(`Insights API error: ${res.status}`);
         const data = await res.json();
         renderInsights(data.insights || []);
@@ -441,7 +458,7 @@
         elements.submitTxnBtn.textContent = 'Saving...';
 
         try {
-            const res = await fetch('/api/transactions', {
+            const res = await fetch(apiUrl('/api/transactions'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
@@ -484,7 +501,7 @@
         elements.saveBudgetBtn.textContent = 'Saving...';
 
         try {
-            const res = await fetch('/api/budget', {
+            const res = await fetch(apiUrl('/api/budget'), {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ amount: amount.toFixed(2) })
@@ -523,7 +540,7 @@
         elements.checkAffordabilityBtn.textContent = 'Checking...';
 
         try {
-            const res = await fetch('/api/affordability', {
+            const res = await fetch(apiUrl('/api/affordability'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ amount: amount.toFixed(2) })
@@ -632,7 +649,7 @@
     (function initChat() {
         'use strict';
 
-        const API = '/api/assistant';
+        const API = (typeof window.apiUrl === 'function') ? window.apiUrl('/api/assistant') : '/api/assistant';
 
         // DOM refs
         const chatToggleBtn  = document.getElementById('chatToggleBtn');
