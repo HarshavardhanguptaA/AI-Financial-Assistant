@@ -632,7 +632,7 @@
     (function initChat() {
         'use strict';
 
-        const API = 'http://localhost:8080/api/assistant';
+        const API = '/api/assistant';
 
         // DOM refs
         const chatToggleBtn  = document.getElementById('chatToggleBtn');
@@ -701,27 +701,55 @@
         }
 
         async function sendMessage(text) {
-            appendUserMessage(text);
+            if (!text || !text.trim()) return;
+            const trimmedText = text.trim();
+
+            appendUserMessage(trimmedText);
             const typingEl = showTyping();
             isWaiting = true;
             chatSendBtn.disabled = true;
+
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
 
             try {
                 const res = await fetch(API, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message: text })
+                    body: JSON.stringify({ message: trimmedText }),
+                    signal: controller.signal
                 });
-                const data = await res.json();
+                clearTimeout(timeoutId);
+
+                let data = null;
+                const contentType = res.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                    try {
+                        data = await res.json();
+                    } catch (parseErr) {
+                        data = null;
+                    }
+                }
+
                 removeTyping(typingEl);
-                if (res.ok && data.reply) {
+
+                if (res.ok && data && data.reply) {
                     appendBotMessage(data.reply);
+                } else if (data && data.error) {
+                    appendBotMessage(data.error);
+                } else if (!res.ok) {
+                    appendBotMessage(`Request error (${res.status}): Unable to process your query.`);
                 } else {
-                    appendBotMessage(data.error || 'Sorry, something went wrong. Please try again.');
+                    appendBotMessage('Sorry, something went wrong. Please try again.');
                 }
             } catch (err) {
+                clearTimeout(timeoutId);
                 removeTyping(typingEl);
-                appendBotMessage('Unable to reach the assistant. Make sure the server is running on port 8080.');
+                if (err.name === 'AbortError') {
+                    appendBotMessage('The request timed out. Please try asking again.');
+                } else {
+                    appendBotMessage('Unable to reach the assistant. Please check your network or server connection.');
+                }
             } finally {
                 isWaiting = false;
                 chatSendBtn.disabled = false;
